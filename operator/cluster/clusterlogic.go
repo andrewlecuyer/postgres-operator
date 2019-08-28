@@ -112,7 +112,7 @@ func AddCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *cr
 		Port:                    cl.Spec.Port,
 		LogStatement:            operator.Pgo.Cluster.LogStatement,
 		LogMinDurationStatement: operator.Pgo.Cluster.LogMinDurationStatement,
-		CCPImagePrefix:          operator.Pgo.Cluster.CCPImagePrefix,
+		CCPImagePrefix:          cl.Spec.CCPImagePrefix,
 		CCPImage:                cl.Spec.CCPImage,
 		CCPImageTag:             cl.Spec.CCPImageTag,
 		PVCName:                 util.CreatePVCSnippet(cl.Spec.PrimaryStorage.StorageType, primaryPVCName),

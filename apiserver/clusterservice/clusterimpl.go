@@ -858,6 +858,7 @@ func getClusterParams(request *msgs.CreateClusterRequest, name string, userLabel
 	} else {
 		spec.CCPImage = "crunchy-postgres"
 	}
+	spec.CCPImagePrefix = apiserver.Pgo.Cluster.CCPImagePrefix
 	spec.Namespace = ns
 	spec.Name = name
 	spec.ClusterName = name
