@@ -22,7 +22,7 @@ export NS=pgouser1
 $PGO_CMD delete secret -n $NS \
 	fromcrd-postgres-secret \
 	fromcrd-primaryuser-secret \
-	fromcrd-backrest-repo-secret \
+	fromcrd-backrest-repo-config \
 	fromcrd-testuser-secret	> /dev/null
 $PGO_CMD delete pgcluster fromcrd -n $NS
 $PGO_CMD delete pvc fromcrd -n $NS
