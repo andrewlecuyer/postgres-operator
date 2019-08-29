@@ -330,7 +330,7 @@ func Scale(clientset *kubernetes.Clientset, client *rest.RESTClient, replica *cr
 		ClusterName:             replica.Spec.ClusterName,
 		PgMode:                  "replica",
 		Port:                    cluster.Spec.Port,
-		CCPImagePrefix:          operator.Pgo.Cluster.CCPImagePrefix,
+		CCPImagePrefix:          cluster.Spec.CCPImagePrefix,
 		LogStatement:            operator.Pgo.Cluster.LogStatement,
 		LogMinDurationStatement: operator.Pgo.Cluster.LogMinDurationStatement,
 		CCPImageTag:             imageTag,
