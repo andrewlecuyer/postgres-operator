@@ -1,0 +1,183 @@
+{{- define "deployerJob.spec" }}
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      name: pgo-deploy
+      labels:
+        app.kubernetes.io/managed-by: helm
+        meta.helm.sh/release-name: postgres-operator
+        meta.helm.sh/release-namespace: pgo    
+    spec:
+      serviceAccountName: pgo-deployer-sa
+      restartPolicy: Never
+      containers:
+      - name: pgo-deploy
+        image: {{ .Values.pgo_image_prefix }}/pgo-deployer:centos7-{{ .Chart.AppVersion }}
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: ARCHIVE_MODE
+            value: "{{ .Values.archive_mode }}"
+          - name: ARCHIVE_TIMEOUT
+            value: "{{ .Values.archive_timeout }}"
+          - name: BACKREST
+            value: "{{ .Values.backrest }}"
+          - name: BADGER
+            value: "{{ .Values.badger }}"
+          - name: CRUNCHY_DEBUG
+            value: "{{ .Values.crunchy_debug }}"
+          - name: CREATE_RBAC
+            value: "{{ .Values.create_rbac}}"
+          - name: CCP_IMAGE_PREFIX
+            value: "{{ .Values.ccp_image_prefix }}"
+          - name: CCP_IMAGE_TAG
+            value: "{{ tpl .Values.ccp_image_tag . }}"
+          - name: DB_PASSWORD_LENGTH
+            value: "{{ .Values.db_password_length }}"
+          - name: DB_PORT
+            value: "{{ .Values.db_port }}"
+          - name: DB_REPLICAS
+            value: "{{ .Values.db_replicas }}"
+          - name: DB_USER
+            value: "{{ .Values.db_user }}"
+          - name: DEFAULT_INSTANCE_MEMORY
+            value: "{{ .Values.default_instance_memory }}"
+          - name: DEFAULT_PGBACKREST_MEMORY
+            value: "{{ .Values.default_pgbackrest_memory }}"
+          - name: DEFAULT_PGBOUNCER_MEMORY
+            value: "{{ .Values.default_pgbouncer_memory }}"
+          - name: DEPLOY_ACTION
+            value: "{{ .deployAction }}"
+          - name: DISABLE_AUTO_FAILOVER
+            value: "{{ .Values.disable_auto_failover }}"
+          - name: DISABLE_FSGROUP
+            value: "{{ .Values.disable_fsgroup }}"
+          - name: DYNAMIC_RBAC
+            value: "{{ .Values.dynamic_rbac }}"
+          - name: EXPORTERPORT
+            value: "{{ .Values.exporterport }}"
+          - name: METRICS
+            value: "{{ .Values.metrics }}"
+          - name: NAMESPACE
+            value: "{{ .Values.namespace }}"
+          - name: NAMESPACE_MODE
+            value: "{{ .Values.namespace_mode }}"
+          - name: PGBADGERPORT
+            value: "{{ .Values.pgbadgerport }}"
+          - name: PGO_ADMIN_PASSWORD
+            value: "{{ .Values.pgo_admin_password }}"
+          - name: PGO_ADMIN_PERMS
+            value: "{{ .Values.pgo_admin_perms }}"
+          - name: PGO_ADMIN_ROLE_NAME
+            value: "{{ .Values.pgo_admin_role_name }}"
+          - name: PGO_ADMIN_USERNAME
+            value: "{{ .Values.pgo_admin_username }}"
+          - name: PGO_CLIENT_VERSION
+            value: "{{ .Values.pgo_client_version }}"
+          - name: PGO_IMAGE_PREFIX
+            value: "{{ .Values.pgo_image_prefix }}"
+          - name: PGO_IMAGE_TAG
+            value: "{{ tpl .Values.pgo_image_tag . }}"
+          - name: PGO_INSTALLATION_NAME
+            value: "{{ .Values.pgo_installation_name }}"
+          - name: PGO_OPERATOR_NAMESPACE
+            value: "{{ .Values.pgo_operator_namespace }}"
+          - name: SCHEDULER_TIMEOUT
+            value: "{{ .Values.scheduler_timeout }}"
+          - name: BACKREST_STORAGE
+            value: "{{ .Values.backrest_storage }}"
+          - name: BACKUP_STORAGE
+            value: "{{ .Values.backup_storage }}"
+          - name: PRIMARY_STORAGE
+            value: "{{ .Values.primary_storage }}"
+          - name: REPLICA_STORAGE
+            value: "{{ .Values.replica_storage }}"
+          - name: WAL_STORAGE
+            value: "{{ .Values.wal_storage }}"
+          - name: STORAGE1_NAME
+            value: "{{ .Values.storage1_name }}"
+          - name: STORAGE1_ACCESS_MODE
+            value: "{{ .Values.storage1_access_mode }}"
+          - name: STORAGE1_SIZE
+            value: "{{ .Values.storage1_size }}"
+          - name: STORAGE2_NAME
+            value: "{{ .Values.storage2_name }}"
+          - name: STORAGE2_ACCESS_MODE
+            value: "{{ .Values.storage2_access_mode }}"
+          - name: STORAGE2_SIZE
+            value: "{{ .Values.storage2_size }}"
+          - name: STORAGE2_TYPE
+            value: "{{ .Values.storage2_type }}"
+          - name: STORAGE3_NAME
+            value: "{{ .Values.storage3_name }}"
+          - name: STORAGE3_ACCESS_MODE
+            value: "{{ .Values.storage3_access_mode }}"
+          - name: STORAGE3_SIZE
+            value: "{{ .Values.storage3_size }}"
+          - name: STORAGE3_TYPE
+            value: "{{ .Values.storage3_type }}"
+          - name: STORAGE3_SUPPLEMENTAL_GROUPS
+            value: "{{ .Values.storage3_supplemental_groups }}"
+          - name: STORAGE4_NAME
+            value: "{{ .Values.storage4_name }}"
+          - name: STORAGE4_ACCESS_MODE
+            value: "{{ .Values.storage4_access_mode }}"
+          - name: STORAGE4_SIZE
+            value: "{{ .Values.storage4_size }}"
+          - name: STORAGE4_MATCH_LABEL
+            value: "{{ .Values.storage4_match_labels }}"
+          - name: STORAGE4_TYPE
+            value: "{{ .Values.storage4_type }}"
+          - name: STORAGE4_SUPPLEMENTAL_GROUPS
+            value: "{{ .Values.storage4_supplemental_groups }}"
+          - name: STORAGE5_NAME
+            value: "{{ .Values.storage5_name }}"
+          - name: STORAGE5_ACCESS_MODE
+            value: "{{ .Values.storage5_access_mode }}"
+          - name: STORAGE5_SIZE
+            value: "{{ .Values.storage5_size }}"
+          - name: STORAGE5_TYPE
+            value: "{{ .Values.storage5_type }}"
+          - name: STORAGE5_CLASS
+            value: "{{ .Values.storage5_class }}"
+          - name: STORAGE6_NAME
+            value: "{{ .Values.storage6_name }}"
+          - name: STORAGE6_ACCESS_MODE
+            value: "{{ .Values.storage6_access_mode }}"
+          - name: STORAGE6_SIZE
+            value: "{{ .Values.storage6_size }}"
+          - name: STORAGE6_TYPE
+            value: "{{ .Values.storage6_type }}"
+          - name: STORAGE6_CLASS
+            value: "{{ .Values.storage6_class }}"
+          - name: STORAGE7_NAME
+            value: "{{ .Values.storage7_name }}"
+          - name: STORAGE7_ACCESS_MODE
+            value: "{{ .Values.storage7_access_mode }}"
+          - name: STORAGE7_SIZE
+            value: "{{ .Values.storage7_size }}"
+          - name: STORAGE7_TYPE
+            value: "{{ .Values.storage7_type }}"
+          - name: STORAGE7_CLASS
+            value: "{{ .Values.storage7_class }}"
+          - name: STORAGE8_NAME
+            value: "{{ .Values.storage8_name }}"
+          - name: STORAGE8_ACCESS_MODE
+            value: "{{ .Values.storage8_access_mode }}"
+          - name: STORAGE8_SIZE
+            value: "{{ .Values.storage8_size }}"
+          - name: STORAGE8_TYPE
+            value: "{{ .Values.storage8_type }}"
+          - name: STORAGE8_CLASS
+            value: "{{ .Values.storage8_class }}"
+          - name: STORAGE9_NAME
+            value: "{{ .Values.storage9_name }}"
+          - name: STORAGE9_ACCESS_MODE
+            value: "{{ .Values.storage9_access_mode }}"
+          - name: STORAGE9_SIZE
+            value: "{{ .Values.storage9_size }}"
+          - name: STORAGE9_TYPE
+            value: "{{ .Values.storage9_type }}"
+          - name: STORAGE9_CLASS
+            value: "{{ .Values.storage9_class }}"
+{{- end }}

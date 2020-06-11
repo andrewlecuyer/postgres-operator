@@ -1,0 +1,15 @@
+{{ $_ := set . "deployAction" "uninstall" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pgo-deploy
+  namespace: pgo
+  labels:
+    app.kubernetes.io/managed-by: helm
+    meta.helm.sh/release-name: postgres-operator
+    meta.helm.sh/release-namespace: pgo
+  annotations:
+    helm.sh/hook: pre-delete
+    helm.sh/hook-delete-policy: hook-succeeded
+{{ template "deployerJob.spec" . }}
