@@ -16,6 +16,10 @@ metadata:
     app.kubernetes.io/managed-by: helm
     meta.helm.sh/release-name: postgres-operator
     meta.helm.sh/release-namespace: pgo
+  annotations:
+    helm.sh/hook: post-install,post-upgrade,pre-delete
+    helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-weight: "-10"
 rules:
   - apiGroups:
       - ''
@@ -122,6 +126,10 @@ metadata:
     app.kubernetes.io/managed-by: helm
     meta.helm.sh/release-name: postgres-operator
     meta.helm.sh/release-namespace: pgo
+  annotations:
+    helm.sh/hook: post-install,post-upgrade,pre-delete
+    helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-weight: "-10"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

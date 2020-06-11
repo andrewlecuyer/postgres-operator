@@ -12,4 +12,5 @@ metadata:
   annotations:
     helm.sh/hook: post-install
     helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-weight: "0"
 {{ template "deployerJob.spec" . }}
