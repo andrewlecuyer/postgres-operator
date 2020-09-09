@@ -23,7 +23,8 @@
 
 - name: Delete PG Cluster Deployments
   shell: |
-    {{ kubectl_or_oc }} delete deployment --selector=vendor=crunchydata -n {{ item }}
+    {{ kubectl_or_oc }} delete deployment -n {{ item }} \
+      --selector=vendor=crunchydata,app.kubernetes.io/name!=postgres-operator-monitoring
   with_items:
   - "{{ watched_namespaces }}"
   when: not preserve_pg_clusters|bool
@@ -34,7 +35,8 @@
 
 - name: Delete PG Cluster Jobs
   shell: |
-    {{ kubectl_or_oc }} delete jobs --selector=vendor=crunchydata -n {{ item }}
+    {{ kubectl_or_oc }} delete jobs -n {{ item }} \
+      --selector=vendor=crunchydata,app.kubernetes.io/name!=postgres-operator-monitoring
   with_items:
   - "{{ watched_namespaces }}"
   when: not preserve_pg_clusters|bool
@@ -45,7 +47,8 @@
 
 - name: Delete PG Cluster Secrets
   shell: |
-    {{ kubectl_or_oc }} delete configmap,secrets --selector=vendor=crunchydata -n {{ item }}
+    {{ kubectl_or_oc }} delete configmap,secrets -n {{ item }} \
+      --selector=vendor=crunchydata,app.kubernetes.io/name!=postgres-operator-monitoring
   with_items:
   - "{{ watched_namespaces }}"
   when: not preserve_pg_clusters|bool
@@ -56,7 +59,8 @@
 
 - name: Delete PG Cluster Services
   shell: |
-    {{ kubectl_or_oc }} delete services --selector=vendor=crunchydata -n {{ item }}
+    {{ kubectl_or_oc }} delete service -n {{ item }} \
+      --selector=vendor=crunchydata,app.kubernetes.io/name!=postgres-operator-monitoring
   with_items:
   - "{{ watched_namespaces }}"
   when: not preserve_pg_clusters|bool
@@ -67,7 +71,8 @@
 
 - name: Delete PG PVC's
   shell: |
-    {{ kubectl_or_oc }} delete pvc --selector=vendor=crunchydata -n {{ item }}
+    {{ kubectl_or_oc }} delete pvc -n {{ item }} \
+      --selector=vendor=crunchydata,app.kubernetes.io/name!=postgres-operator-monitoring
   with_items:
   - "{{ watched_namespaces }}"
   when: not preserve_pg_clusters|bool

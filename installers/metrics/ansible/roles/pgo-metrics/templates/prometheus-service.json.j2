@@ -5,7 +5,8 @@
         "name": "{{ prometheus_service_name }}",
         "labels": {
             "name": "{{ prometheus_service_name }}",
-            "vendor": "crunchydata"
+            "vendor": "crunchydata",
+            "app.kubernetes.io/name": "postgres-operator-monitoring"
         }
     },
     "spec": {

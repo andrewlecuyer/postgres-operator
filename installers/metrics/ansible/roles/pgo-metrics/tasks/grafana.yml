@@ -73,6 +73,7 @@
         {{ kubectl_or_oc }} create configmap {{ grafana_datasources_configmap }} --dry-run --output=yaml \
           --from-file={{ grafana_output_dir }}/crunchy_grafana_datasource.yml \
         | {{ kubectl_or_oc }} label --filename=- --local --dry-run --output=yaml vendor=crunchydata \
+          app.kubernetes.io/name=postgres-operator-monitoring \
         | {{ kubectl_or_oc }} create --filename=- -n {{ metrics_namespace }}
       when: grafana_datasources_custom_config == ""
       register: create_grafana_datasources_result
@@ -87,6 +88,7 @@
           --from-file={{ pgmonitor_grafana_dir }}/containers/ \
         | sed -e 's,${DS_PROMETHEUS},PROMETHEUS,' \
         | {{ kubectl_or_oc }} label --filename=- --local --dry-run --output=yaml vendor=crunchydata \
+          app.kubernetes.io/name=postgres-operator-monitoring \
         | {{ kubectl_or_oc }} create --filename=- -n {{ metrics_namespace }}
       when: grafana_dashboards_custom_config == ""
       register: create_grafana_dashboards_result

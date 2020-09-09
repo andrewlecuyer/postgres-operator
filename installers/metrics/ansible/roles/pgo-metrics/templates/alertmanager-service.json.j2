@@ -5,7 +5,8 @@
         "name": "{{ alertmanager_service_name }}",
         "labels": {
             "name": "{{ alertmanager_service_name }}",
-            "vendor": "crunchydata"
+            "vendor": "crunchydata",
+            "app.kubernetes.io/name": "postgres-operator-monitoring"
         }
     },
     "spec": {

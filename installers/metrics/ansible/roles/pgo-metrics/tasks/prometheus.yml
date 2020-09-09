@@ -70,6 +70,7 @@
         {{ kubectl_or_oc }} create configmap crunchy-prometheus --dry-run --output=yaml \
           --from-file={{ prom_output_dir }}/prometheus.yml \
         | {{ kubectl_or_oc }} label --filename=- --local --dry-run --output=yaml vendor=crunchydata \
+          app.kubernetes.io/name=postgres-operator-monitoring \
         | {{ kubectl_or_oc }} create --filename=- -n {{ metrics_namespace }}
       when: prometheus_custom_config == ""
       register: create_prometheus_datasources_result

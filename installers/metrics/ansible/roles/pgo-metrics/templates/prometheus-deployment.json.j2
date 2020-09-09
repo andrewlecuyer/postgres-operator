@@ -4,7 +4,8 @@
     "metadata": {
         "name": "crunchy-prometheus",
         "labels": {
-            "vendor": "crunchydata"
+            "vendor": "crunchydata",
+            "app.kubernetes.io/name": "postgres-operator-monitoring"
         }
     },
     "spec": {
@@ -12,14 +13,16 @@
         "selector": {
           "matchLabels": {
             "name": "{{ prometheus_service_name }}",
-            "vendor": "crunchydata"
+            "vendor": "crunchydata",
+            "app.kubernetes.io/name": "postgres-operator-monitoring"
           }
         },
         "template": {
             "metadata": {
                 "labels": {
                     "name": "{{ prometheus_service_name }}",
-                    "vendor": "crunchydata"
+                    "vendor": "crunchydata",
+                    "app.kubernetes.io/name": "postgres-operator-monitoring"
                 }
             },
             "spec": {
