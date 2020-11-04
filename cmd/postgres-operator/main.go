@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/crunchydata/postgres-operator/internal/controller"
 	"github.com/crunchydata/postgres-operator/internal/controller/manager"
 	nscontroller "github.com/crunchydata/postgres-operator/internal/controller/namespace"
+	"github.com/crunchydata/postgres-operator/internal/controller/runtime"
 	crunchylog "github.com/crunchydata/postgres-operator/internal/logging"
 	"github.com/crunchydata/postgres-operator/internal/ns"
 	log "github.com/sirupsen/logrus"
@@ -91,7 +93,7 @@ func main() {
 	// consistent manner regardless of the namespace operating mode being utilized.
 	if operator.NamespaceOperatingMode() != ns.NamespaceOperatingModeDisabled {
 		if err := createAndStartNamespaceController(client, controllerManager,
-			stopCh); err != nil {
+			stopCh.Done()); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -100,16 +102,18 @@ func main() {
 			log.Fatal(err)
 		}
 		if err := createAndStartNamespaceController(fakeClient, controllerManager,
-			stopCh); err != nil {
+			stopCh.Done()); err != nil {
 			log.Fatal(err)
 		}
 	}
 
 	defer controllerManager.RemoveAll()
 
-	log.Info("PostgreSQL Operator initialized and running, waiting for signal to exit")
-	<-stopCh
-	log.Infof("Signal received, now exiting")
+	// create and start the controller runtime manager
+	if err := createAndStartRuntimeManager(stopCh, client); err != nil {
+		log.Error(err)
+		os.Exit(2)
+	}
 }
 
 // createAndStartNamespaceController creates a namespace controller and then starts it
@@ -143,6 +147,25 @@ func createAndStartNamespaceController(kubeClientset kubernetes.Interface,
 	}
 
 	log.Debug("namespace controller is now running")
+
+	return nil
+}
+
+// createAndStartRuntimeManager creates and starts a controller runtime manager for the PostgreSQL
+// Operator
+func createAndStartRuntimeManager(context context.Context, clientSet *kubeapi.Client) error {
+
+	mgr, err := runtime.NewPGORuntimeManager()
+	if err != nil {
+		return err
+	}
+	log.Debug("controller runtime manager created")
+
+	log.Debug("starting controller runtime manager and will wait for signal to exit")
+	if err := mgr.Start(context); err != nil {
+		return err
+	}
+	log.Debug("signal recieved, exiting")
 
 	return nil
 }

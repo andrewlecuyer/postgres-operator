@@ -23,7 +23,6 @@ import (
 
 	"github.com/crunchydata/postgres-operator/internal/config"
 	"github.com/crunchydata/postgres-operator/internal/controller"
-	"github.com/crunchydata/postgres-operator/internal/controller/configmap"
 	"github.com/crunchydata/postgres-operator/internal/controller/job"
 	"github.com/crunchydata/postgres-operator/internal/controller/pgcluster"
 	"github.com/crunchydata/postgres-operator/internal/controller/pgpolicy"
@@ -281,15 +280,6 @@ func (c *ControllerManager) addControllerGroup(namespace string) error {
 		Informer: kubeInformerFactory.Batch().V1().Jobs(),
 	}
 
-	configMapController, err := configmap.NewConfigMapController(client.Config,
-		client, kubeInformerFactoryWithRefresh.Core().V1().ConfigMaps(),
-		pgoInformerFactory.Crunchydata().V1().Pgclusters(),
-		*c.pgoConfig.Pgo.ConfigMapWorkerCount)
-	if err != nil {
-		log.Errorf("Unable to create ConfigMap controller: %v", err)
-		return err
-	}
-
 	// add the proper event handler to the informer in each controller
 	pgTaskcontroller.AddPGTaskEventHandler()
 	pgClustercontroller.AddPGClusterEventHandler()
@@ -312,14 +302,13 @@ func (c *ControllerManager) addControllerGroup(namespace string) error {
 			pgoInformerFactory.Crunchydata().V1().Pgpolicies().Informer().HasSynced,
 			kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
 			kubeInformerFactory.Batch().V1().Jobs().Informer().HasSynced,
-			kubeInformerFactoryWithRefresh.Core().V1().ConfigMaps().Informer().HasSynced,
 		},
 	}
 
 	// store the controllers containing worker queues so that the queues can also be started
 	// when any informers in the controller are started
 	group.controllersWithWorkers = append(group.controllersWithWorkers,
-		pgTaskcontroller, pgClustercontroller, pgReplicacontroller, configMapController)
+		pgTaskcontroller, pgClustercontroller, pgReplicacontroller)
 
 	c.controllers[namespace] = group
 

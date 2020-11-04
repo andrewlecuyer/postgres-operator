@@ -16,12 +16,13 @@ limitations under the License.
 */
 
 import (
+	"context"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/tools/cache"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crunchydata/postgres-operator/internal/config"
 	cfg "github.com/crunchydata/postgres-operator/internal/operator/config"
@@ -30,30 +31,33 @@ import (
 
 // handleConfigMapSync is responsible for syncing a configMap resource that has obtained from
 // the ConfigMap controller's worker queue
-func (c *Controller) handleConfigMapSync(key string) error {
+func (r *ReconcileConfigMap) reconcileConfigMap(namespace, configMapName string) error {
 
-	log.Debugf("ConfigMap Controller: handling a configmap sync for key %s", key)
+	log.Debugf("ConfigMap Reconciler: handling a configmap sync for configMap %s in namespace "+
+		"(namespace %s)", namespace, configMapName)
 
-	namespace, configMapName, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		log.Error(err)
-		return nil
-	}
-
-	configMap, err := c.cmLister.ConfigMaps(namespace).Get(configMapName)
-	if err != nil {
+	configMap := &corev1.ConfigMap{}
+	if err := r.Client.Get(context.TODO(), runtimeclient.ObjectKey{
+		Namespace: namespace,
+		Name:      configMapName,
+	}, configMap); err != nil {
 		return err
 	}
+
 	clusterName := configMap.GetObjectMeta().GetLabels()[config.LABEL_PG_CLUSTER]
 
-	cluster, err := c.pgclusterLister.Pgclusters(namespace).Get(clusterName)
+	cluster := &crv1.Pgcluster{}
+	err := r.Client.Get(context.TODO(), runtimeclient.ObjectKey{
+		Namespace: namespace,
+		Name:      clusterName,
+	}, cluster)
 	if err != nil {
 		// If the pgcluster is not found, then simply log an error and return.  This should not
 		// typically happen, but in the event of an orphaned configMap with no pgcluster we do
 		// not want to keep re-queueing the same item.  If any other error is encountered then
 		// return that error.
 		if kerrors.IsNotFound(err) {
-			log.Errorf("ConfigMap Controller: cannot find pgcluster for configMap %s (namespace %s),"+
+			log.Errorf("ConfigMap Reconciler: cannot find pgcluster for configMap %s (namespace %s),"+
 				"ignoring", configMapName, namespace)
 			return nil
 		}
@@ -62,7 +66,7 @@ func (c *Controller) handleConfigMapSync(key string) error {
 
 	// if an upgrade is pending for the cluster, then don't attempt to sync and just return
 	if cluster.GetAnnotations()[config.ANNOTATION_IS_UPGRADED] == config.ANNOTATIONS_FALSE {
-		log.Debugf("ConfigMap Controller: syncing of configMap %s (namespace %s) disabled pending the "+
+		log.Debugf("ConfigMap Reconciler: syncing of configMap %s (namespace %s) disabled pending the "+
 			"upgrade of cluster %s", configMapName, namespace, clusterName)
 		return nil
 	}
@@ -72,21 +76,21 @@ func (c *Controller) handleConfigMapSync(key string) error {
 		return nil
 	}
 
-	c.syncPGHAConfig(c.createPGHAConfigs(configMap, clusterName,
+	r.syncPGHAConfig(r.createPGHAConfigs(configMap, clusterName,
 		cluster.GetObjectMeta().GetLabels()[config.LABEL_PGHA_SCOPE]))
 
 	return nil
 }
 
 // createConfigurerMap creates the configs needed to sync the PGHA configMap
-func (c *Controller) createPGHAConfigs(configMap *corev1.ConfigMap,
+func (r *ReconcileConfigMap) createPGHAConfigs(configMap *corev1.ConfigMap,
 	clusterName, clusterScope string) []cfg.Syncer {
 
 	var configSyncers []cfg.Syncer
 
-	configSyncers = append(configSyncers, cfg.NewDCS(configMap, c.kubeclientset, clusterScope))
+	configSyncers = append(configSyncers, cfg.NewDCS(configMap, r.ClientSet, clusterScope))
 
-	localDBConfig, err := cfg.NewLocalDB(configMap, c.cmRESTConfig, c.kubeclientset)
+	localDBConfig, err := cfg.NewLocalDB(configMap, r.ClientSet.Config, r.ClientSet)
 	// Just log the error and don't add to the map so a sync can still be attempted with
 	// any other configurers
 	if err != nil {
@@ -99,7 +103,7 @@ func (c *Controller) createPGHAConfigs(configMap *corev1.ConfigMap,
 }
 
 // syncAllConfigs takes a map of configurers and runs their sync functions concurrently
-func (c *Controller) syncPGHAConfig(configSyncers []cfg.Syncer) {
+func (r *ReconcileConfigMap) syncPGHAConfig(configSyncers []cfg.Syncer) {
 
 	var wg sync.WaitGroup
 
