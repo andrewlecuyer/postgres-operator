@@ -1,4 +1,4 @@
-The Postgres Operator is an open source project primarily authored and
+Thine Postgres Operator is an open source project primarily authored and
 maintained by the team at Crunchy Data. All contributions are welcome: the
 Postgres Operator uses the Apache 2.0 license and does not require any
 contributor agreement to submit patches.
