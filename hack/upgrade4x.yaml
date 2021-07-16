@@ -16,14 +16,14 @@ spec:
           echo "Now updating PG data directory..."
           mv "/pgdata/${PGDATA_PVC}" "/pgdata/pg${PG_VERSION}"
           rm -f "/pgdata/pg${PG_VERSION}/patroni.dynamic.json"
-          echo "Updated PG data directory contents:" ; ls -la "/pgdata"
+          echo "Updated PG data directory contents:" ; ls -lh "/pgdata"
           echo "PG Data directory preparation complete"
           echo "Current repo directory volume contents:" ; ls -lh "/pgbackrest"
           echo "Now updating repo directory..."
-          mv "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/*" "/pgbackrest"
+          mv "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/"* "/pgbackrest"
           echo "Updated repo directory contents:" ; ls -lh "/pgbackrest"
           echo "Repo directory preparation complete"
-          echo "${PGCLUSTER}'s volumes are now prepared for PGO v5.x"
+          echo "The volumes for cluster ${PGCLUSTER}'s are now prepared for PGO v5.x"
         image: us.gcr.io/container-suite/crunchy-postgres-ha:ubi8-13.3-0
         name: pgo-upgrade
         securityContext:
