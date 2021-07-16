@@ -8,19 +8,20 @@ spec:
       containers:
       - command:
         - bash
-        - -c
+        - -ce
         - |-
           echo "Preparing ${PGCLUSTER}'s volumes for PGO v5.x"
           echo "pgdata_pvc=${PGDATA_PVC} repo_pvc=${REPO_PVC}"
           echo "Current PG data directory volume contents:" ; ls -lh "/pgdata"
           echo "Now updating PG data directory..."
-          mv "/pgdata/${PGDATA_PVC}" "/pgdata/pg${PG_VERSION}"
+          [ -d "/pgdata/${PGDATA_PVC}" ] && mv "/pgdata/${PGDATA_PVC}" "/pgdata/pg${PG_VERSION}"
           rm -f "/pgdata/pg${PG_VERSION}/patroni.dynamic.json"
           echo "Updated PG data directory contents:" ; ls -lh "/pgdata"
           echo "PG Data directory preparation complete"
           echo "Current repo directory volume contents:" ; ls -lh "/pgbackrest"
           echo "Now updating repo directory..."
-          mv "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/"* "/pgbackrest"
+          [ -d "/pgbackrest/${PGCLUSTER}-backrest-shared-repo" ] && \
+            mv "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/"* "/pgbackrest"
           echo "Updated repo directory contents:" ; ls -lh "/pgbackrest"
           echo "Repo directory preparation complete"
           echo "The volumes for cluster ${PGCLUSTER}'s are now prepared for PGO v5.x"
