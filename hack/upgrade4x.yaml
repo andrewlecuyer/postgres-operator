@@ -20,14 +20,13 @@ spec:
           echo "PG Data directory preparation complete"
           echo "Current repo directory volume contents:" ; ls -lh "/pgbackrest"
           echo "Now updating repo directory..."
-          rm -rf "/pgbackrest/${PGCLUSTER}-backrest-shared-repo"
           [ -d "/pgbackrest/${PGCLUSTER}-backrest-shared-repo" ] && \
             mv "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/"* "/pgbackrest"
           rm -rf "/pgbackrest/${PGCLUSTER}-backrest-shared-repo"
           echo "Updated repo directory contents:" ; ls -lh "/pgbackrest"
           echo "Repo directory preparation complete"
           echo "The volumes for cluster ${PGCLUSTER}'s are now prepared for PGO v5.x"
-        image: us.gcr.io/container-suite/crunchy-postgres-ha:ubi8-13.3-0
+        image: ${IMAGE}
         name: pgo-upgrade
         securityContext:
           allowPrivilegeEscalation: false
