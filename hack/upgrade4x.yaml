@@ -20,8 +20,10 @@ spec:
           echo "PG Data directory preparation complete"
           echo "Current repo directory volume contents:" ; ls -lh "/pgbackrest"
           echo "Now updating repo directory..."
+          "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/"
           [ -d "/pgbackrest/${PGCLUSTER}-backrest-shared-repo" ] && \
             mv "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/"* "/pgbackrest"
+          rm -f "/pgbackrest/${PGCLUSTER}-backrest-shared-repo/"
           echo "Updated repo directory contents:" ; ls -lh "/pgbackrest"
           echo "Repo directory preparation complete"
           echo "The volumes for cluster ${PGCLUSTER}'s are now prepared for PGO v5.x"
