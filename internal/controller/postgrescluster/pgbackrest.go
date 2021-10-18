@@ -17,6 +17,7 @@ package postgrescluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -48,6 +49,7 @@ import (
 	"github.com/crunchydata/postgres-operator/internal/naming"
 	"github.com/crunchydata/postgres-operator/internal/patroni"
 	"github.com/crunchydata/postgres-operator/internal/pgbackrest"
+	"github.com/crunchydata/postgres-operator/internal/pki"
 	"github.com/crunchydata/postgres-operator/internal/postgres"
 	"github.com/crunchydata/postgres-operator/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 )
@@ -132,9 +134,11 @@ type RepoResources struct {
 // rollout of the pgBackRest repository host StatefulSet in accordance with its configured
 // strategy.
 func (r *Reconciler) applyRepoHostIntent(ctx context.Context, postgresCluster *v1beta1.PostgresCluster,
-	repoHostName string, repoResources *RepoResources) (*appsv1.StatefulSet, error) {
+	repoHostName string, repoResources *RepoResources,
+	instances *observedInstances) (*appsv1.StatefulSet, error) {
 
-	repo, err := r.generateRepoHostIntent(postgresCluster, repoHostName, repoResources)
+	repo, err := r.generateRepoHostIntent(ctx, postgresCluster, repoHostName, repoResources,
+		instances)
 	if err != nil {
 		return nil, err
 	}
@@ -486,8 +490,9 @@ func (r *Reconciler) setScheduledJobStatus(ctx context.Context,
 // generateRepoHostIntent creates and populates StatefulSet with the PostgresCluster's full intent
 // as needed to create and reconcile a pgBackRest dedicated repository host within the kubernetes
 // cluster.
-func (r *Reconciler) generateRepoHostIntent(postgresCluster *v1beta1.PostgresCluster,
-	repoHostName string, repoResources *RepoResources,
+func (r *Reconciler) generateRepoHostIntent(ctx context.Context,
+	postgresCluster *v1beta1.PostgresCluster, repoHostName string, repoResources *RepoResources,
+	instances *observedInstances,
 ) (*appsv1.StatefulSet, error) {
 
 	annotations := naming.Merge(
@@ -568,8 +573,17 @@ func (r *Reconciler) generateRepoHostIntent(postgresCluster *v1beta1.PostgresClu
 		resources = postgresCluster.Spec.Backups.PGBackRest.RepoHost.Resources
 	}
 	// add ssh pod info
-	if err := pgbackrest.AddSSHToPod(postgresCluster, &repo.Spec.Template, true,
-		resources); err != nil {
+	// if err := pgbackrest.AddSSHToPod(postgresCluster, &repo.Spec.Template, true,
+	// 	resources); err != nil {
+	// 	return nil, errors.WithStack(err)
+	// }
+	instanceCNs := []string{}
+	for _, instance := range instances.byName {
+		instanceCNs = append(instanceCNs, naming.InstancePodDNSNames(ctx, instance.Runner)[0])
+	}
+	sort.Strings(instanceCNs)
+	if err := pgbackrest.AddTLSToPod(postgresCluster, &repo.Spec.Template, resources,
+		instanceCNs...); err != nil {
 		return nil, errors.WithStack(err)
 	}
 	// add pgBackRest repo volumes to pod
@@ -581,6 +595,11 @@ func (r *Reconciler) generateRepoHostIntent(postgresCluster *v1beta1.PostgresClu
 	// add configs to pod
 	if err := pgbackrest.AddConfigsToPod(postgresCluster, &repo.Spec.Template,
 		pgbackrest.CMRepoKey, naming.PGBackRestRepoContainerName); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if err := pgbackrest.AddPGBackRestCertsToPod(postgresCluster, &repo.Spec.Template,
+		naming.PGBackRestSecret(postgresCluster).Name,
+		naming.PGBackRestRepoContainerName); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -1084,14 +1103,14 @@ func (r *Reconciler) reconcileRestoreJob(ctx context.Context,
 		return errors.WithStack(err)
 	}
 
-	if pgbackrest.DedicatedRepoHostEnabled(sourceCluster) {
-		// add ssh configs to template
-		if err := pgbackrest.AddSSHToPod(sourceCluster, &restoreJob.Spec.Template, false,
-			dataSource.Resources,
-			naming.PGBackRestRestoreContainerName); err != nil {
-			return errors.WithStack(err)
-		}
-	}
+	// if pgbackrest.DedicatedRepoHostEnabled(sourceCluster) {
+	// 	// add ssh configs to template
+	// 	if err := pgbackrest.AddSSHToPod(sourceCluster, &restoreJob.Spec.Template, false,
+	// 		dataSource.Resources,
+	// 		naming.PGBackRestRestoreContainerName); err != nil {
+	// 		return errors.WithStack(err)
+	// 	}
+	// }
 
 	// add pgBackRest configs to template
 	if err := pgbackrest.AddConfigsToPod(sourceCluster, &restoreJob.Spec.Template,
@@ -1185,7 +1204,8 @@ func (r *Reconciler) generateRestoreJobIntent(cluster *v1beta1.PostgresCluster,
 // the results of any attempts to properly reconcile these resources.
 func (r *Reconciler) reconcilePGBackRest(ctx context.Context,
 	postgresCluster *v1beta1.PostgresCluster,
-	instances *observedInstances) (reconcile.Result, error) {
+	instances *observedInstances,
+	rootCACert *pki.RootCertificateAuthority) (reconcile.Result, error) {
 
 	// add some additional context about what component is being reconciled
 	log := logging.FromContext(ctx).WithValues("reconciler", "pgBackRest")
@@ -1211,15 +1231,21 @@ func (r *Reconciler) reconcilePGBackRest(ctx context.Context,
 	var repoHost *appsv1.StatefulSet
 	var repoHostName string
 	dedicatedEnabled := pgbackrest.DedicatedRepoHostEnabled(postgresCluster)
-	if dedicatedEnabled {
+	if dedicatedEnabled && len(instances.forCluster) > 0 {
 		// reconcile the pgbackrest repository host
-		repoHost, err = r.reconcileDedicatedRepoHost(ctx, postgresCluster, repoResources)
+		repoHost, err = r.reconcileDedicatedRepoHost(ctx, postgresCluster, repoResources, instances)
 		if err != nil {
 			log.Error(err, "unable to reconcile pgBackRest repo host")
 			result = updateReconcileResult(result, reconcile.Result{Requeue: true})
 			return result, nil
 		}
 		repoHostName = repoHost.GetName()
+
+		// reconcile pgBackRest Secret containing certificates for TLS-based repo hosts
+		if err := r.reconcilePGBackRestSecret(ctx, postgresCluster, repoHost, rootCACert); err != nil {
+			log.Error(err, "unable to reconcile pgBackRest secret")
+			result = updateReconcileResult(result, reconcile.Result{Requeue: true})
+		}
 	} else if len(postgresCluster.Status.Conditions) > 0 {
 		// TODO: remove guard above with move to controller-runtime 0.9.0 https://issue.k8s.io/99714
 		// remove the dedicated repo host status if a dedicated host is not enabled
@@ -1329,7 +1355,8 @@ func (r *Reconciler) reconcilePGBackRest(ctx context.Context,
 // for the PostgresCluster being reconciled using the backups of another PostgresCluster.
 func (r *Reconciler) reconcilePostgresClusterDataSource(ctx context.Context,
 	cluster *v1beta1.PostgresCluster, dataSource *v1beta1.PostgresClusterDataSource,
-	configHash string, clusterVolumes []corev1.PersistentVolumeClaim) error {
+	configHash string, clusterVolumes []corev1.PersistentVolumeClaim,
+	rootCACert *pki.RootCertificateAuthority) error {
 
 	// grab cluster, namespaces and repo name information from the data source
 	sourceClusterName := dataSource.ClusterName
@@ -1413,7 +1440,7 @@ func (r *Reconciler) reconcilePostgresClusterDataSource(ctx context.Context,
 		// Note that function reconcilePGBackRest only uses forCluster in observedInstances.
 		result, err := r.reconcilePGBackRest(ctx, cluster, &observedInstances{
 			forCluster: []*Instance{instance},
-		})
+		}, rootCACert)
 		if err != nil || result != (reconcile.Result{}) {
 			return fmt.Errorf("unable to reconcile pgBackRest as needed to initialize "+
 				"PostgreSQL data for the cluster: %w", err)
@@ -1632,6 +1659,83 @@ func (r *Reconciler) reconcilePGBackRestConfig(ctx context.Context,
 	return nil
 }
 
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=create;patch
+
+// reconcilePGBackRestSecret reconciles the pgBackRest Secret.  This secret contains the TLS
+// certificates needed to enable TLS-based pgBackRest repositories within the PostgreSQL
+// cluster.
+func (r *Reconciler) reconcilePGBackRestSecret(ctx context.Context,
+	cluster *v1beta1.PostgresCluster, repoHost *appsv1.StatefulSet,
+	rootCACert *pki.RootCertificateAuthority) error {
+
+	pgBackRestSecret := &corev1.Secret{ObjectMeta: naming.PGBackRestSecret(cluster)}
+	meta := naming.PGBackRestSecret(cluster)
+	meta.Annotations = naming.Merge(
+		cluster.Spec.Metadata.GetAnnotationsOrNil(),
+		cluster.Spec.Backups.PGBackRest.Metadata.GetAnnotationsOrNil())
+	meta.Labels = naming.Merge(cluster.Spec.Metadata.GetLabelsOrNil(),
+		cluster.Spec.Backups.PGBackRest.Metadata.GetLabelsOrNil(),
+		naming.PGBackRestSecretLabels(cluster.GetName()),
+	)
+	pgBackRestSecret.Type = corev1.SecretTypeOpaque
+	pgBackRestSecret.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Secret"))
+
+	// RFC 2818 states that the certificate DNS names must be used to verify
+	// HTTPS identity.
+	var err error
+	leaf := pki.NewLeafCertificate("", nil, nil)
+	leaf.DNSNames = naming.RepoHostPodDNSNames(ctx, repoHost)
+	leaf.CommonName = leaf.DNSNames[0] // FQDN
+
+	existing := &corev1.Secret{}
+	if err := errors.WithStack(client.IgnoreNotFound(r.Client.Get(ctx,
+		client.ObjectKeyFromObject(pgBackRestSecret), existing))); err != nil {
+		return err
+	}
+
+	if data, ok := existing.Data[pgBackRestCertFile]; ok {
+		if leaf.Certificate, err = pki.ParseCertificate(data); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	if data, ok := existing.Data[pgBackRestKeyFile]; ok {
+		if leaf.PrivateKey, err = pki.ParsePrivateKey(data); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	// if there is an error or the leaf certificate is bad, generate a new one
+	if pki.LeafCertIsBad(ctx, leaf, rootCACert, repoHost.GetNamespace()) {
+		if err := leaf.Generate(rootCACert); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	pgBackRestSecret.Data = make(map[string][]byte)
+
+	if pgBackRestSecret.Data[pgBackRestCertFile], err =
+		leaf.Certificate.MarshalText(); err != nil {
+		return errors.WithStack(err)
+	}
+	if pgBackRestSecret.Data[pgBackRestKeyFile], err =
+		leaf.PrivateKey.MarshalText(); err != nil {
+		return errors.WithStack(err)
+	}
+	if pgBackRestSecret.Data[rootCertFile], err =
+		rootCACert.Certificate.MarshalText(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	prettyJSON, _ := json.MarshalIndent(pgBackRestSecret, "", "    ")
+	fmt.Printf("%s\n", string(prettyJSON))
+
+	if err := r.apply(ctx, pgBackRestSecret); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=create;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=create;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=create;patch
@@ -1704,7 +1808,7 @@ func (r *Reconciler) reconcilePGBackRestRBAC(ctx context.Context,
 // StatefulSet according to a specific PostgresCluster custom resource.
 func (r *Reconciler) reconcileDedicatedRepoHost(ctx context.Context,
 	postgresCluster *v1beta1.PostgresCluster,
-	repoResources *RepoResources) (*appsv1.StatefulSet, error) {
+	repoResources *RepoResources, instances *observedInstances) (*appsv1.StatefulSet, error) {
 
 	log := logging.FromContext(ctx).WithValues("reconcileResource", "repoHost")
 
@@ -1744,7 +1848,7 @@ func (r *Reconciler) reconcileDedicatedRepoHost(ctx context.Context,
 		})
 	}
 	repoHostName := repoResources.hosts[0].Name
-	repoHost, err := r.applyRepoHostIntent(ctx, postgresCluster, repoHostName, repoResources)
+	repoHost, err := r.applyRepoHostIntent(ctx, postgresCluster, repoHostName, repoResources, instances)
 	if err != nil {
 		log.Error(err, "reconciling repository host")
 		return nil, err

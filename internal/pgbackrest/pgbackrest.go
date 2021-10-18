@@ -53,7 +53,7 @@ declare -r hash="$1" stanza="$2" message="$3"
 if [[ "$(< /etc/pgbackrest/conf.d/config-hash)" != "${hash}" ]]; then
     printf >&2 "%s" "${message}"; exit 1;
 else
-    pgbackrest stanza-create --stanza="${stanza}"
+    pgbackrest stanza-create --stanza="${stanza}" --log-level-console=debug
 fi
 `
 	if err := exec(ctx, nil, &stdout, &stderr, "bash", "-ceu", "--",

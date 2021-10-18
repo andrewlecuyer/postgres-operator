@@ -60,6 +60,9 @@ const (
 	// LabelPGBackRestConfig is used to indicate that a ConfigMap is for pgBackRest
 	LabelPGBackRestConfig = labelPrefix + "pgbackrest-config"
 
+	// LabelPGBackRestSecret is used to indicate that a Secret is for pgBackRest
+	LabelPGBackRestSecret = labelPrefix + "pgbackrest-secret"
+
 	// LabelPGBackRestDedicated is used to indicate that a ConfigMap is for a pgBackRest dedicated
 	// repository host
 	LabelPGBackRestDedicated = labelPrefix + "pgbackrest-dedicated"
@@ -273,4 +276,13 @@ func PGBackRestRepoVolumeLabels(clusterName, repoName string) labels.Set {
 		LabelData:                 DataPGBackRest,
 	}
 	return labels.Merge(repoLabels, repoVolLabels)
+}
+
+// PGBackRestSecretLabels provides labels for the pgBackRest Secret
+func PGBackRestSecretLabels(clusterName string) labels.Set {
+	repoLabels := PGBackRestLabels(clusterName)
+	operatorConfigLabels := map[string]string{
+		LabelPGBackRestConfig: "",
+	}
+	return labels.Merge(repoLabels, operatorConfigLabels)
 }

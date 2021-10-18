@@ -413,6 +413,14 @@ func PGBackRestSSHSecret(cluster *v1beta1.PostgresCluster) metav1.ObjectMeta {
 	}
 }
 
+// PGBackRestSecret returns the ObjectMeta for a pgBackRest Secret
+func PGBackRestSecret(cluster *v1beta1.PostgresCluster) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      cluster.GetName() + "-pgbackrest",
+		Namespace: cluster.GetNamespace(),
+	}
+}
+
 // DeprecatedPostgresUserSecret returns the ObjectMeta necessary to lookup the
 // old Secret containing the default Postgres user and connection information.
 // Use PostgresUserSecret instead.

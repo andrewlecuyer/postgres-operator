@@ -33,6 +33,9 @@ const (
 	clusterCertFile = "tls.crt"
 	clusterKeyFile  = "tls.key"
 	rootCertFile    = "ca.crt"
+
+	pgBackRestCertFile = "tls.crt"
+	pgBackRestKeyFile  = "tls.key"
 )
 
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get
@@ -190,6 +193,51 @@ func (r *Reconciler) reconcileClusterCertificate(
 	}
 
 	return clusterCertSecretProjection(intent), err
+}
+
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=create;patch
+
+// pgBackRestRepoCertificate ...
+func (*Reconciler) pgBackRestRepoCertificate(
+	ctx context.Context, instance *appsv1.StatefulSet,
+	existing, intent *corev1.Secret, rootCACert *pki.RootCertificateAuthority,
+) (
+	*pki.LeafCertificate, error,
+) {
+	var err error
+	const keyCertificate, keyPrivateKey = "tls.crt", "tls.key"
+
+	// RFC 2818 states that the certificate DNS names must be used to verify
+	// HTTPS identity.
+	leaf := pki.NewLeafCertificate("", nil, nil)
+	leaf.DNSNames = naming.InstancePodDNSNames(ctx, instance)
+	leaf.CommonName = leaf.DNSNames[0] // FQDN
+
+	if data, ok := existing.Data[keyCertificate]; err == nil && ok {
+		leaf.Certificate, err = pki.ParseCertificate(data)
+		err = errors.WithStack(err)
+	}
+	if data, ok := existing.Data[keyPrivateKey]; err == nil && ok {
+		leaf.PrivateKey, err = pki.ParsePrivateKey(data)
+		err = errors.WithStack(err)
+	}
+
+	// if there is an error or the leaf certificate is bad, generate a new one
+	if err != nil || pki.LeafCertIsBad(ctx, leaf, rootCACert, instance.Namespace) {
+		err = errors.WithStack(leaf.Generate(rootCACert))
+	}
+
+	if err == nil {
+		intent.Data[keyCertificate], err = leaf.Certificate.MarshalText()
+		err = errors.WithStack(err)
+	}
+	if err == nil {
+		intent.Data[keyPrivateKey], err = leaf.PrivateKey.MarshalText()
+		err = errors.WithStack(err)
+	}
+
+	return leaf, err
 }
 
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get

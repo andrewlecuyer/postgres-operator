@@ -81,6 +81,54 @@ func AddRepoVolumesToPod(postgresCluster *v1beta1.PostgresCluster, template *cor
 	return nil
 }
 
+func AddPGBackRestCertsToPod(postgresCluster *v1beta1.PostgresCluster, template *corev1.PodTemplateSpec,
+	secretName string, containerNames ...string) error {
+
+	template.Spec.Volumes = append(template.Spec.Volumes, corev1.Volume{
+		Name: CertVol,
+		VolumeSource: corev1.VolumeSource{
+			Projected: &corev1.ProjectedVolumeSource{
+				Sources: []corev1.VolumeProjection{{
+					Secret: &corev1.SecretProjection{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						Items: []corev1.KeyToPath{
+							{Key: "ca.crt", Path: "ca.crt"},
+							{Key: "tls.crt", Path: "tls.crt"},
+							{Key: "tls.key", Path: "tls.key"},
+						},
+					},
+				}},
+				DefaultMode: initialize.Int32(0o600),
+			},
+		},
+	})
+
+	for _, name := range containerNames {
+		var containerFound bool
+		var index int
+		for index = range template.Spec.Containers {
+			if template.Spec.Containers[index].Name == name {
+				containerFound = true
+				break
+			}
+		}
+		if !containerFound {
+			return errors.Errorf("Unable to find container %q when adding pgBackRest certificates",
+				name)
+		}
+		template.Spec.Containers[index].VolumeMounts =
+			append(template.Spec.Containers[index].VolumeMounts,
+				corev1.VolumeMount{
+					Name:      CertVol,
+					MountPath: CertDir,
+				})
+	}
+
+	return nil
+}
+
 // AddConfigsToPod populates a Pod template Spec with with pgBackRest configuration volumes while
 // then mounting that configuration to the specified containers.
 func AddConfigsToPod(postgresCluster *v1beta1.PostgresCluster, template *corev1.PodTemplateSpec,
@@ -237,6 +285,58 @@ func AddSSHToPod(postgresCluster *v1beta1.PostgresCluster, template *corev1.PodT
 		template.Spec.Containers[index].VolumeMounts =
 			append(template.Spec.Containers[index].VolumeMounts, sshVolumeMount)
 	}
+
+	return nil
+}
+
+// AddTLSToPod populates a Pod template Spec with with the container and volumes needed to enable
+// pgBackRest TLS within a Pod.
+func AddTLSToPod(postgresCluster *v1beta1.PostgresCluster, template *corev1.PodTemplateSpec,
+	resources corev1.ResourceRequirements, authorizedCNs ...string) error {
+
+	cmd := []string{
+		"pgbackrest", "server-start",
+		"--tls-server-ca-file", "/etc/pgbackrest/tls/ca.crt",
+		"--tls-server-cert-file", "/etc/pgbackrest/tls/tls.crt",
+		"--tls-server-key-file", "/etc/pgbackrest/tls/tls.key",
+		"--tls-server-address", "::",
+		"--log-level-console", "debug",
+	}
+	for _, authCN := range authorizedCNs {
+		cmd = append(cmd, "--tls-server-auth", authCN+"="+DefaultStanzaName)
+	}
+
+	container := corev1.Container{
+		//Command:         []string{"tail", "-f", "/dev/null"},
+		Command:         cmd,
+		Image:           config.PGBackRestContainerImage(postgresCluster),
+		ImagePullPolicy: postgresCluster.Spec.ImagePullPolicy,
+		LivenessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					// "pgbackrest server-ping" will use "localhost" by default.  However, this
+					// does not currently work within our container.  Specifically,
+					Command: []string{"pgbackrest", "server-ping", "127.0.0.1"},
+				},
+			},
+		},
+		Name:            naming.PGBackRestRepoContainerName,
+		SecurityContext: initialize.RestrictedSecurityContext(),
+		Resources:       resources,
+	}
+
+	// Mount PostgreSQL volumes if they are present in the template.
+	postgresMounts := map[string]corev1.VolumeMount{
+		postgres.DataVolumeMount().Name: postgres.DataVolumeMount(),
+		postgres.WALVolumeMount().Name:  postgres.WALVolumeMount(),
+	}
+	for i := range template.Spec.Volumes {
+		if mount, ok := postgresMounts[template.Spec.Volumes[i].Name]; ok {
+			container.VolumeMounts = append(container.VolumeMounts, mount)
+		}
+	}
+
+	template.Spec.Containers = append(template.Spec.Containers, container)
 
 	return nil
 }

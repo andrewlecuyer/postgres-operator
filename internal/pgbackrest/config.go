@@ -44,6 +44,12 @@ const (
 	cmJobKey     = "pgbackrest_job.conf"
 	cmPrimaryKey = "pgbackrest_primary.conf"
 
+	// CertVol is the name of the pgBackRest certificate volume
+	CertVol = "pgbackrest-certs"
+
+	// CertDir is the pgBackRest certificate directory
+	CertDir = "/etc/pgbackrest/tls"
+
 	// CMInstanceKey is the name of the pgBackRest configuration file for a PostgreSQL instance
 	CMInstanceKey = "pgbackrest_instance.conf"
 
@@ -277,6 +283,10 @@ func populatePGInstanceConfigurationMap(serviceName, serviceNamespace, repoHostN
 		// Only "volume" (i.e. PVC-based) repos should ever have a repo host configured.  This
 		// means cloud-based repos (S3, GCS or Azure) should not have a repo host configured.
 		if repoHostName != "" && repo.Volume != nil {
+			pgBackRestConfig["global"][repo.Name+"-host-type"] = "tls"
+			pgBackRestConfig["global"][repo.Name+"-host-ca-file"] = "/etc/pgbackrest/tls/ca.crt"
+			pgBackRestConfig["global"][repo.Name+"-host-cert-file"] = "/etc/pgbackrest/tls/tls.crt"
+			pgBackRestConfig["global"][repo.Name+"-host-key-file"] = "/etc/pgbackrest/tls/tls.key"
 			pgBackRestConfig["global"][repo.Name+"-host"] = repoHostName + "-0." + serviceName +
 				"." + serviceNamespace + ".svc." +
 				naming.KubernetesClusterDomain(context.Background())
@@ -343,6 +353,10 @@ func populateRepoHostConfigurationMap(serviceName, serviceNamespace, pgdataDir s
 
 	// set the configs for all PG hosts
 	for i, pgHost := range pgHosts {
+		pgBackRestConfig["stanza"][fmt.Sprintf("pg%d-host-type", i+1)] = "tls"
+		pgBackRestConfig["stanza"][fmt.Sprintf("pg%d-host-ca-file", i+1)] = "/etc/pgbackrest/tls/ca.crt"
+		pgBackRestConfig["stanza"][fmt.Sprintf("pg%d-host-cert-file", i+1)] = "/etc/pgbackrest/tls/tls.crt"
+		pgBackRestConfig["stanza"][fmt.Sprintf("pg%d-host-key-file", i+1)] = "/etc/pgbackrest/tls/tls.key"
 		pgBackRestConfig["stanza"][fmt.Sprintf("pg%d-host", i+1)] = pgHost + "-0." + serviceName +
 			"." + serviceNamespace + ".svc." +
 			naming.KubernetesClusterDomain(context.Background())

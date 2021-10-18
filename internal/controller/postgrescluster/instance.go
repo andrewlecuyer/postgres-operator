@@ -1059,7 +1059,7 @@ func (r *Reconciler) reconcileInstance(
 
 	// Add pgBackRest containers, volumes, etc. to the instance Pod spec
 	if err == nil {
-		err = addPGBackRestToInstancePodSpec(cluster, &instance.Spec.Template)
+		err = addPGBackRestToInstancePodSpec(ctx, cluster, instance)
 	}
 
 	// Add pgMonitor resources to the instance Pod spec
@@ -1220,8 +1220,8 @@ func generateInstanceStatefulSetIntent(_ context.Context,
 // PostgresCluster spec, mounting pgBackRest repo volumes if a dedicated repository is not
 // configured, and then mounting the proper pgBackRest configuration resources (ConfigMaps
 // and Secrets)
-func addPGBackRestToInstancePodSpec(cluster *v1beta1.PostgresCluster,
-	template *corev1.PodTemplateSpec) error {
+func addPGBackRestToInstancePodSpec(ctx context.Context, cluster *v1beta1.PostgresCluster,
+	instance *appsv1.StatefulSet) error {
 
 	dedicatedRepoEnabled := pgbackrest.DedicatedRepoHostEnabled(cluster)
 	pgBackRestConfigContainers := []string{naming.ContainerDatabase}
@@ -1234,13 +1234,24 @@ func addPGBackRestToInstancePodSpec(cluster *v1beta1.PostgresCluster,
 			cluster.Spec.Backups.PGBackRest.Sidecars.PGBackRest.Resources != nil {
 			resources = *cluster.Spec.Backups.PGBackRest.Sidecars.PGBackRest.Resources
 		}
-		if err := pgbackrest.AddSSHToPod(cluster, template, true,
-			resources, naming.ContainerDatabase); err != nil {
+		// if err := pgbackrest.AddSSHToPod(cluster, template, true,
+		// 	resources, naming.ContainerDatabase); err != nil {
+		// 	return errors.WithStack(err)
+		// }
+		repoHostCN := fmt.Sprintf("%s-repo-host-0.%s.%s.svc.%s", cluster.GetName(),
+			naming.ClusterPodService(cluster).Name, cluster.Namespace,
+			naming.KubernetesClusterDomain(ctx))
+		if err := pgbackrest.AddTLSToPod(cluster, &instance.Spec.Template, resources,
+			repoHostCN); err != nil {
 			return errors.WithStack(err)
 		}
 	}
-	if err := pgbackrest.AddConfigsToPod(cluster, template, pgbackrest.CMInstanceKey,
+	if err := pgbackrest.AddConfigsToPod(cluster, &instance.Spec.Template, pgbackrest.CMInstanceKey,
 		pgBackRestConfigContainers...); err != nil {
+		return errors.WithStack(err)
+	}
+	if err := pgbackrest.AddPGBackRestCertsToPod(cluster, &instance.Spec.Template,
+		naming.InstanceCertificates(instance).Name, pgBackRestConfigContainers...); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -1334,6 +1345,17 @@ func (r *Reconciler) reconcileInstanceCertificates(
 			root.Certificate, leafCert.Certificate,
 			leafCert.PrivateKey, instanceCerts)
 	}
+
+	if instanceCerts.Data["ca.crt"], err = root.Certificate.MarshalText(); err != nil {
+		return nil, errors.WithStack(r.apply(ctx, instanceCerts))
+	}
+	if instanceCerts.Data["tls.crt"], err = leafCert.Certificate.MarshalText(); err != nil {
+		return nil, errors.WithStack(r.apply(ctx, instanceCerts))
+	}
+	if instanceCerts.Data["tls.key"], err = leafCert.PrivateKey.MarshalText(); err != nil {
+		return nil, errors.WithStack(r.apply(ctx, instanceCerts))
+	}
+
 	if err == nil {
 		err = errors.WithStack(r.apply(ctx, instanceCerts))
 	}
