@@ -4,7 +4,7 @@ kind: PostgresCluster
 metadata:
   name: init-pgbackrest
 spec:
-  postgresVersion: 14
+  postgresVersion: ${KUTTL_PG_VERSION}
   instances:
     - name: instance1
       replicas: 2

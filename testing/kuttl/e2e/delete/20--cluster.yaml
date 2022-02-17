@@ -3,7 +3,7 @@ kind: PostgresCluster
 metadata:
   name: delete-not-running
 spec:
-  postgresVersion: 14
+  postgresVersion: ${KUTTL_PG_VERSION}
   image: "example.com/does-not-exist"
   instances:
     - name: instance1
