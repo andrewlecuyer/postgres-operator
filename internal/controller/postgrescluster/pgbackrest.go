@@ -2261,8 +2261,8 @@ func (r *Reconciler) reconcileReplicaCreateBackup(ctx context.Context,
 	serviceAccount *corev1.ServiceAccount, configHash, replicaCreateRepoName string) error {
 
 	var replicaCreateRepoStatus *v1beta1.RepoStatus
-	for i, r := range postgresCluster.Status.PGBackRest.Repos {
-		if r.Name == replicaCreateRepoName {
+	for i, repo := range postgresCluster.Status.PGBackRest.Repos {
+		if repo.Name == replicaCreateRepoName {
 			replicaCreateRepoStatus = &postgresCluster.Status.PGBackRest.Repos[i]
 			break
 		}
@@ -2495,8 +2495,8 @@ func (r *Reconciler) reconcileStanzaCreate(ctx context.Context,
 			return
 		}
 		replicaCreateRepoName := postgresCluster.Spec.Backups.PGBackRest.Repos[0].Name
-		for i, r := range postgresCluster.Status.PGBackRest.Repos {
-			if r.Name == replicaCreateRepoName {
+		for i, repo := range postgresCluster.Status.PGBackRest.Repos {
+			if repo.Name == replicaCreateRepoName {
 				replicaCreateRepoStatus = &postgresCluster.Status.PGBackRest.Repos[i]
 				break
 			}

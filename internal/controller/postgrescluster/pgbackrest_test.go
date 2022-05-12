@@ -928,6 +928,10 @@ func TestGetPGBackRestExecSelector(t *testing.T) {
 }
 
 func TestReconcileReplicaCreateBackup(t *testing.T) {
+	// Garbage collector cleans up test resources before the test completes
+	if strings.EqualFold(os.Getenv("USE_EXISTING_CLUSTER"), "true") {
+		t.Skip("USE_EXISTING_CLUSTER: Test fails due to garbage collection")
+	}
 
 	// setup the test environment and ensure a clean teardown
 	tEnv, tClient, cfg := setupTestEnv(t, ControllerName)
@@ -1002,6 +1006,7 @@ func TestReconcileReplicaCreateBackup(t *testing.T) {
 	// now find the expected job
 	jobs := &batchv1.JobList{}
 	err = tClient.List(ctx, jobs, &client.ListOptions{
+		Namespace: postgresCluster.Namespace,
 		LabelSelector: naming.PGBackRestBackupJobSelector(clusterName, replicaCreateRepo,
 			naming.BackupReplicaCreate),
 	})
@@ -1088,8 +1093,8 @@ func TestReconcileReplicaCreateBackup(t *testing.T) {
 
 	// verify the status has been updated properly
 	var replicaCreateRepoStatus *v1beta1.RepoStatus
-	for i, r := range postgresCluster.Status.PGBackRest.Repos {
-		if r.Name == replicaCreateRepo {
+	for i, repo := range postgresCluster.Status.PGBackRest.Repos {
+		if repo.Name == replicaCreateRepo {
 			replicaCreateRepoStatus = &postgresCluster.Status.PGBackRest.Repos[i]
 			break
 		}
