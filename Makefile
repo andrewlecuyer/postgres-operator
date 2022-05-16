@@ -1,13 +1,13 @@
 
 # Default values if not already set
 PGOROOT ?= $(CURDIR)
-PGO_BASEOS ?= centos8
+PGO_BASEOS ?= ubi8
 BASE_IMAGE_OS ?= $(PGO_BASEOS)
 PGO_IMAGE_PREFIX ?= crunchydata
 PGO_IMAGE_TAG ?= $(PGO_BASEOS)-$(PGO_VERSION)
 PGO_VERSION ?= $(shell git describe --tags)
-PGO_PG_VERSION ?= 13
-PGO_PG_FULLVERSION ?= 13.4
+PGO_PG_VERSION ?= 14
+PGO_PG_FULLVERSION ?= 14.3
 PGO_KUBE_CLIENT ?= kubectl
 PACKAGER ?= yum
 
@@ -49,12 +49,6 @@ ifeq ("$(PGO_BASEOS)", "ubi8")
     DFSET=rhel
     DOCKERBASEREGISTRY=registry.access.redhat.com/
     PACKAGER=microdnf
-endif
-ifeq ("$(PGO_BASEOS)", "centos8")
-    BASE_IMAGE_OS=centos8
-    DFSET=centos
-    DOCKERBASEREGISTRY=centos:
-    PACKAGER=dnf
 endif
 
 DEBUG_BUILD ?= false
@@ -220,7 +214,7 @@ check-kuttl:
 .PHONY: generate-kuttl
 generate-kuttl: export KUTTL_PG_VERSION ?= 14
 generate-kuttl: export KUTTL_POSTGIS_VERSION ?= 3.1
-generate-kuttl: export KUTTL_PSQL_IMAGE ?= registry.developers.crunchydata.com/crunchydata/crunchy-postgres:centos8-14.2-0
+generate-kuttl: export KUTTL_PSQL_IMAGE ?= registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-14.2-0
 generate-kuttl:
 	[ ! -d testing/kuttl/e2e-generated ] || rm -r testing/kuttl/e2e-generated
 	[ ! -d testing/kuttl/e2e-generated-other ] || rm -r testing/kuttl/e2e-generated-other
@@ -271,7 +265,6 @@ pull: $(images:%=pull-%) ;
 
 pull-%:
 	$(IMG_PUSHER_PULLER) pull $(PGO_IMAGE_PREFIX)/$*:$(PGO_IMAGE_TAG)
-
 generate: generate-crd generate-crd-docs generate-deepcopy generate-rbac
 
 generate-crd:

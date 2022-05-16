@@ -15,14 +15,6 @@ LABEL name="crunchy-postgres-exporter" \
 	io.k8s.display-name="Crunchy PostgreSQL Exporter" \
 	io.openshift.tags="postgresql,postgres,monitoring,database,crunchy"
 
-RUN if [ "$DFSET" = "centos" ] ; then \
-	${PACKAGER} -y install epel-release \
-    && ${PACKAGER} install -y \
-        --setopt=skip_missing_names_on_install=False \
-        postgresql${PGVERSION} \
-    && ${PACKAGER} -y clean all ; \
-fi
-
 RUN if [ "$BASEOS" = "ubi8" ] ; then \
 	${PACKAGER} install -y \
 		findutils \

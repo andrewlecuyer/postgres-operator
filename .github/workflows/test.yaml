@@ -50,11 +50,11 @@ jobs:
           k3d-tag: v4.4.8
           k3d-args: --no-lb
       - name: Prefetch container images
-        run: >
+        run: |
           {
-            echo '"registry.developers.crunchydata.com/crunchydata/crunchy-postgres-ha:centos8-13.3-4.7.0"'
-            echo '"registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:centos8-13.3-4.7.0"'
-            echo '"registry.developers.crunchydata.com/crunchydata/crunchy-pgbouncer:centos8-13.3-4.7.0"'
+            echo '"registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-13.7-0"'
+            echo '"registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.38-1"'
+            echo '"registry.developers.crunchydata.com/crunchydata/crunchy-pgbouncer:ubi8-1.16-3"'
           } |
           jq --slurp --arg name 'image-prefetch' --argjson labels '{"name":"image-prefetch"}' '{
             apiVersion: "apps/v1", kind: "DaemonSet",
