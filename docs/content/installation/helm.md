@@ -75,14 +75,9 @@ using `helm`:
 helm install <name> -n <namespace> helm/install
 ```
 
-## Upgrade and Uninstall
+## Uninstall
 
-And once PGO has been installed, it can then be upgraded and uninstalled using applicable `helm`
-commands:
-
-```shell
-helm upgrade <name> -n <namespace> helm/install
-```
+And once PGO has been installed, it can then be uninstalled using an applicable `helm` command:
 
 ```shell
 helm uninstall <name> -n <namespace>
