@@ -1025,8 +1025,6 @@ containers:
     privileged: false
     readOnlyRootFilesystem: true
     runAsNonRoot: true
-    seccompProfile:
-      type: RuntimeDefault
   terminationMessagePath: /dev/termination-log
   terminationMessagePolicy: File
   volumeMounts:
@@ -1079,8 +1077,6 @@ containers:
     privileged: false
     readOnlyRootFilesystem: true
     runAsNonRoot: true
-    seccompProfile:
-      type: RuntimeDefault
   terminationMessagePath: /dev/termination-log
   terminationMessagePolicy: File
   volumeMounts:
@@ -1135,8 +1131,6 @@ containers:
     privileged: false
     readOnlyRootFilesystem: true
     runAsNonRoot: true
-    seccompProfile:
-      type: RuntimeDefault
   terminationMessagePath: /dev/termination-log
   terminationMessagePolicy: File
   volumeMounts:
